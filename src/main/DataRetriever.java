@@ -82,13 +82,13 @@ public class DataRetriever {
     }
 
     List<Ingredient> createIngredients(List<Ingredient> newIngredients) {
-        String insertSql = "INSERT INTO Ingredient(name,price,category,required_quantity) VALUES (?,?,?,?);";
+        String insertSql = "INSERT INTO Ingredient(name, price, category, required_quantity) VALUES (?, ?, ?::category_enum, ?);";
         try {
             Connection connection = dbConnection.getConnection();
             connection.setAutoCommit(false);
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(insertSql,
-                    Statement.RETURN_GENERATED_KEYS)) {
+                    new String[]{"id"})) {
                 for (Ingredient ingredient : newIngredients) {
                     preparedStatement.setString(1, ingredient.getName());
                     preparedStatement.setDouble(2, ingredient.getPrice());
@@ -99,11 +99,14 @@ public class DataRetriever {
                 preparedStatement.executeBatch();
                 try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
                     int i = 0;
-                    while (generatedKeys.next()) {
-                        newIngredients.get(i++).setId(generatedKeys.getInt(1));
+                    while (generatedKeys.next() && i < newIngredients.size()) {
+                        newIngredients.get(i).setId(generatedKeys.getInt(1));
+                        i++;
                     }
                 }
+
                 connection.commit();
+                System.out.println("Ingredient créee");
                 return newIngredients;
             } catch (SQLException e) {
                 connection.rollback();

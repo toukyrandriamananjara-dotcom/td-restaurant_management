@@ -82,42 +82,65 @@ public class DataRetriever {
     }
 
     List<Ingredient> createIngredients(List<Ingredient> newIngredients) {
+        String checkSql = "SELECT id FROM Ingredient WHERE name = ? AND category = ?::category_enum";
         String insertSql = "INSERT INTO Ingredient(name, price, category, required_quantity) VALUES (?, ?, ?::category_enum, ?);";
+        Connection connection = null;
+
         try {
-            Connection connection = dbConnection.getConnection();
+            connection = dbConnection.getConnection();
             connection.setAutoCommit(false);
 
-            try (PreparedStatement preparedStatement = connection.prepareStatement(insertSql,
-                    new String[]{"id"})) {
-                for (Ingredient ingredient : newIngredients) {
-                    preparedStatement.setString(1, ingredient.getName());
-                    preparedStatement.setDouble(2, ingredient.getPrice());
-                    preparedStatement.setString(3, ingredient.getCategory() == null ? null : ingredient.getCategory().name());
-                    preparedStatement.setDouble(4, ingredient.getRequiredQuantity());
-                    preparedStatement.addBatch();
-                }
-                preparedStatement.executeBatch();
-                try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
-                    int i = 0;
-                    while (generatedKeys.next() && i < newIngredients.size()) {
-                        newIngredients.get(i).setId(generatedKeys.getInt(1));
-                        i++;
+            List<Ingredient> result = new ArrayList<>();
+
+            for (Ingredient ingredient : newIngredients) {
+                try (PreparedStatement checkPs = connection.prepareStatement(checkSql)) {
+                    checkPs.setString(1, ingredient.getName());
+                    checkPs.setString(2, ingredient.getCategory().name());
+                    ResultSet rs = checkPs.executeQuery();
+
+                    if (rs.next()) {
+                        int existingId = rs.getInt("id");
+                        ingredient.setId(existingId);
+                        System.out.println("Ingrédient existant récupéré : " + ingredient.getName() + " (ID: " + existingId + ")");
+                    } else {
+                        try (PreparedStatement insertPs = connection.prepareStatement(insertSql, new String[]{"id"})) {
+                            insertPs.setString(1, ingredient.getName());
+                            insertPs.setDouble(2, ingredient.getPrice());
+                            insertPs.setString(3, ingredient.getCategory() == null ? null : ingredient.getCategory().name());
+                            insertPs.setDouble(4, ingredient.getRequiredQuantity());
+                            insertPs.executeUpdate();
+
+                            try (ResultSet generatedKeys = insertPs.getGeneratedKeys()) {
+                                if (generatedKeys.next()) {
+                                    ingredient.setId(generatedKeys.getInt(1));
+                                    System.out.println("Nouvel ingrédient créé : " + ingredient.getName() + " (ID: " + ingredient.getId() + ")");
+                                }
+                            }
+                        }
                     }
                 }
-
-                connection.commit();
-                System.out.println("Ingredient créee");
-                return newIngredients;
-            } catch (SQLException e) {
-                connection.rollback();
-                throw new RuntimeException(e);
+                result.add(ingredient);
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
-    ;
+            connection.commit();
+            return result;
+
+        } catch (SQLException e) {
+            if (connection != null) {
+                try {
+                    connection.rollback();
+                    System.err.println("Transaction annulée - rollback effectué");
+                } catch (SQLException ex) {
+                    e.addSuppressed(ex);
+                }
+            }
+            throw new RuntimeException("Erreur lors de la création des ingrédients", e);
+        } finally {
+            if (connection != null) {
+                dbConnection.closeConnection(connection);
+            }
+        }
+    };
 
     List<Dish> findDishesByIngredientName(String ingredientName) {
         List<Dish> dishes = new ArrayList<>();
@@ -147,14 +170,9 @@ public class DataRetriever {
             throw new RuntimeException(e);
         }
         return dishes;
-    }
+    };
 
-    ;
-
-    List<Ingredient> findIngredientsByCriteria(String ingredientName,
-                                               CategoryEnum category,
-                                               String dishName,
-                                               int page, int size) {
+    List<Ingredient> findIngredientsByCriteria(String ingredientName, CategoryEnum category, String dishName, int page, int size) {
         List<Ingredient> ingredients = new ArrayList<>();
         try {
             Connection connection = dbConnection.getConnection();
@@ -162,7 +180,7 @@ public class DataRetriever {
                     "SELECT i.id AS ingredient_id, i.name AS ingredient_name, " +
                             "i.price, i.category, d.id AS dish_id, " +
                             "d.name AS dish_name FROM Ingredient i JOIN Dish d " +
-                            "ON d.id = i.dish_id WHERE " +
+                            "ON d.id = i.id_dish WHERE " +
                             "(? IS NULL OR i.name ILIKE ?) " +
                             "AND (? IS NULL OR i.category = ?) " +
                             "AND (? IS NULL OR d.name ILIKE ?) " +
@@ -214,9 +232,7 @@ public class DataRetriever {
             throw new RuntimeException(e);
         }
         return ingredients;
-    }
-
-    ;
+    };
 
     public Dish saveDish(Dish dishToSave) {
         String upsertDishSql = """

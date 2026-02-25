@@ -10,7 +10,9 @@ public class Main {
 
         List<Ingredient> ingredients = new ArrayList<>();
         Ingredient pommeDeTerre = new Ingredient("Pomme de terre", 2.5, CategoryEnum.VEGETABLE);
+        Ingredient saucisse = new Ingredient("Saucisse", 2.5, CategoryEnum.ANIMAL);
         ingredients.add(pommeDeTerre);
+        ingredients.add(saucisse);
 
         List<Ingredient> created = dataRetriever.createIngredients(ingredients);
         System.out.println("Ingrédient créé avec ID : " + created.get(0).getId());

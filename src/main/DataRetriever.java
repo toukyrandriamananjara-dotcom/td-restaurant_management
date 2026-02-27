@@ -82,8 +82,9 @@ public class DataRetriever {
     }
 
     List<Ingredient> createIngredients(List<Ingredient> newIngredients) {
-        String checkSql = "SELECT id FROM Ingredient WHERE name = ? AND category = ?::category_enum";
+        String checkSql = "SELECT id, required_quantity FROM Ingredient WHERE name = ? AND category = ?::category_enum";
         String insertSql = "INSERT INTO Ingredient(name, price, category, required_quantity) VALUES (?, ?, ?::category_enum, ?);";
+        String updateSql = "UPDATE Ingredient SET required_quantity = ? WHERE id = ?";
         Connection connection = null;
 
         try {
@@ -100,8 +101,20 @@ public class DataRetriever {
 
                     if (rs.next()) {
                         int existingId = rs.getInt("id");
+                        double existingQuantity = rs.getDouble("required_quantity");
                         ingredient.setId(existingId);
-                        System.out.println("Ingrédient existant récupéré : " + ingredient.getName() + " (ID: " + existingId + ")");
+
+                        if (ingredient.getRequiredQuantity() != existingQuantity) {
+                            try (PreparedStatement updatePs = connection.prepareStatement(updateSql)) {
+                                updatePs.setDouble(1, ingredient.getRequiredQuantity());
+                                updatePs.setInt(2, existingId);
+                                updatePs.executeUpdate();
+                                System.out.println("Ingrédient existant mis à jour : " + ingredient.getName() +
+                                        " (ID: " + existingId + ", nouvelle quantité: " + ingredient.getRequiredQuantity() + ")");
+                            }
+                        }else {
+                            System.out.println("Ingrédient existant récupéré : " + ingredient.getName() + " (ID: " + existingId + ")");
+                        }
                     } else {
                         try (PreparedStatement insertPs = connection.prepareStatement(insertSql, new String[]{"id"})) {
                             insertPs.setString(1, ingredient.getName());
@@ -236,15 +249,15 @@ public class DataRetriever {
 
     public Dish saveDish(Dish dishToSave) {
         String upsertDishSql = """
-            INSERT INTO dish (id, name, dish_type)
-            VALUES (?, ?, ?::dish_type)
-            ON CONFLICT (id) DO UPDATE
-            SET name = EXCLUDED.name,
-                dish_type = EXCLUDED.dish_type
-            RETURNING id""";
+              INSERT INTO dish (id, name, dish_type)
+        VALUES (?, ?, CAST(? AS dish_type_enum))
+        ON CONFLICT (id) DO UPDATE
+        SET name = EXCLUDED.name,
+            dish_type = EXCLUDED.dish_type
+        RETURNING id""";
 
         String deleteIngredientsSql = "DELETE FROM ingredient WHERE id_dish = ?";
-        String insertIngredientSql = "INSERT INTO ingredient (name, price, category, required_quantity,id_dish) VALUES (?,?, ?::category_enum, ?,?)";
+        String insertIngredientSql = "INSERT INTO ingredient (name, price, category, required_quantity, id_dish) VALUES (?, ?, CAST(? AS category_enum), ?, ?)";
 
         Connection conn = dbConnection.getConnection();
         try {

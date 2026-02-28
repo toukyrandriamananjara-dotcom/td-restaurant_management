@@ -9,6 +9,6 @@ public class Main {
         DataRetriever dataRetriever = new DataRetriever();
 
         Dish existingDish = dataRetriever.findDishById(1);
-        System.out.println(existingDish);
+        System.out.println(existingDish.getDishCoast());
     }
 }

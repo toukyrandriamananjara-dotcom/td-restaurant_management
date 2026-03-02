@@ -6,7 +6,6 @@ public class Ingredient {
     private double price;
     private CategoryEnum category;
     private Dish dish;
-    private double requiredQuantity;
 
     public Ingredient() {
         this.id = id;
@@ -14,7 +13,6 @@ public class Ingredient {
         this.price = price;
         this.category = category;
         this.dish = dish;
-        this.requiredQuantity = requiredQuantity;
     }
 
     public Ingredient(String name, double price, CategoryEnum category) {
@@ -54,13 +52,6 @@ public class Ingredient {
     public void setDish(Dish dish) {
         this.dish = dish;
     }
-    public double getRequiredQuantity(){
-        return requiredQuantity;
-    }
-    public void setRequiredQuantity(double requiredQuantity){
-        this.requiredQuantity = requiredQuantity;
-    }
-
 
     // Dans Ingredient.java
     @Override
@@ -70,7 +61,6 @@ public class Ingredient {
                 ", name='" + name + '\'' +
                 ", price=" + price +
                 ", category=" + category +
-                ", requiredQuantity=" + requiredQuantity +
                 ", dishName=" + (dish != null ? dish.getName() : "null") +
                 '}';
     }

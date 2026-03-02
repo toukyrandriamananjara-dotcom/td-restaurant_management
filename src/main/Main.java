@@ -8,7 +8,7 @@ public class Main {
     public static void main(String[] args) throws SQLException {
         DataRetriever dataRetriever = new DataRetriever();
 
-        Dish existingDish = dataRetriever.findDishById(1);
-        System.out.println(existingDish.getId() +  "- " + existingDish.getName()+ " " + existingDish.getDishType() + ": "+ existingDish.getIngredients());
+        List<Ingredient> existingDish = dataRetriever.findIngredients(1, 5);
+        System.out.println(existingDish);
     }
 }
